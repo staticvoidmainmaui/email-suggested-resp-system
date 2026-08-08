@@ -1,6 +1,28 @@
-# Measuring a Good Email Reply
+<h1 align="center">GEN_AI EMAIL SUGGESTED RESPONSE SYSTEM</h1>
 
-**A hybrid evaluator for AI-drafted support replies — built to defend its accuracy metric, not just report one.**
+<p align="center">
+  <strong>A hybrid evaluator for AI-drafted support replies : defending its accuracy metric, not just report one.</strong>
+</p>
+
+<p align="center">
+  <img src="https://cdn.simpleicons.org/python/3776AB" height="34" alt="Python" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/anthropic/D97757" height="34" alt="Anthropic" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/huggingface/FFD21E" height="34" alt="Hugging Face" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/pytorch/EE4C2C" height="34" alt="PyTorch" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/json/000000" height="34" alt="JSONL" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/git/F05032" height="34" alt="Git" />
+</p>
+
+<p align="center">
+  <sub>
+    Python 3.11 · Anthropic Messages API · DeBERTa-v3-MNLI via Transformers · PyTorch (CPU) · JSONL · Git
+  </sub>
+</p>
 
 ---
 
@@ -152,25 +174,3 @@ PYTHONPATH=src python scripts/nli_probe.py
 # full pipeline, offline
 PYTHONPATH=src python scripts/validate.py --dry-run
 ```
-
----
-
-<p align="center">
-  <img src="https://cdn.simpleicons.org/python/3776AB" height="42" alt="Python" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/anthropic/D97757" height="42" alt="Anthropic" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/huggingface/FFD21E" height="42" alt="Hugging Face" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/pytorch/EE4C2C" height="42" alt="PyTorch" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/json/000000" height="42" alt="JSONL" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/git/F05032" height="42" alt="Git" />
-</p>
-
-<p align="center">
-  <sub>
-    Python 3.11 · Anthropic Messages API · DeBERTa-v3-MNLI via Transformers · PyTorch (CPU) · JSONL · Git
-  </sub>
-</p>
