@@ -56,8 +56,21 @@ class GateResult:
 # identical to the premise about 88530. Different mechanism, different blind
 # spot — see the DIGIT SWAP probe in scripts/nli_probe.py.
 
-# Matches things that look like identifiers or amounts. Deliberately loose.
-_FACT_PATTERN = re.compile(r"\$?\d[\d,]{2,}")
+# Three alternatives, because the things worth checking don't share a shape:
+#   [A-Za-z]{2,}-\d+      a prefixed identifier — "ML-4402", "VPN-14". Matched
+#                         WHOLE so it can be compared against critical_facts as
+#                         written; extracting a bare "4402" and looking that up
+#                         fails, which is exactly the false positive this gate
+#                         produced before.
+#   \$[\d,]+(?:\.\d{2})?  a money amount of ANY size. An earlier {2,} quantifier
+#                         silently skipped everything under $100 — most refunds.
+#   \b\d{4,}\b            a bare run of 4+ digits, i.e. an order ref.
+#
+# WHY not "any number": "5-10 business days" and "2 weeks" are prose, not claims
+# about account state. Matching them fails almost every reply and the gate's
+# precision collapses. The 4-digit floor is a judgement call — state it as a
+# limitation rather than tuning it until the numbers look good.
+_FACT_PATTERN = re.compile(r"[A-Za-z]{2,}-\d+|\$[\d,]+(?:\.\d{2})?|\b\d{4,}\b")
 
 
 def check_facts(reply: str, thread: Thread) -> GateResult:
@@ -93,7 +106,12 @@ def check_facts(reply: str, thread: Thread) -> GateResult:
     unverified= [] #list of unmatched numbers in the reply not in critical facts
     for candidate in _FACT_PATTERN.findall(reply):
         candidate = candidate.strip("$,.")
-        if candidate not in critical_facts:
+        # Substring, not equality: critical_facts records "ML-4402" and "30
+        # minutes", but a reply may legitimately write just "4402" or "30". An
+        # equality test flags those as invented, which is a false positive on a
+        # correct reply — the most expensive kind of error this gate can make,
+        # because it sinks a good reply outright.
+        if not any(candidate in fact for fact in critical_facts):
             unverified.append(candidate)
             
     if unverified:
@@ -179,7 +197,7 @@ def check_faithfulness(reply: str, thread: Thread) -> GateResult:
     #   returns: GateResult("faithfulness", ..., Defect.CONTRADICTS_CONTEXT)
     
     if(thread.gate_applicable is False):
-        return GateResult("faithfulness", True, "Gate skipped", Defect.NONE)
+        return GateResult("faithfulness", True, "skipped: gate_applicable=False", None)
 
     premise = "\n".join(thread.context)
     hypothesis = split_claims(reply) #returning the list of claims off a reply 
