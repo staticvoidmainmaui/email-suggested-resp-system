@@ -1,0 +1,52 @@
+1. Context assembly. The single biggest lever, and it's not model work. The reply can only be as good as the facts you hand it. This is why Thread.context is load-bearing on both sides — for the evaluator it's the closed world that makes faithfulness objective, and for the generator it's the retrieval target. Bad reply usually means bad context, not a bad model.
+2. Prompt structure. Role, tone constraints, an explicit "assert nothing outside the provided facts; if a fact is missing, say you'll follow up." That last clause alone kills a large share of faithfulness failures — you give the model a legal escape hatch instead of forcing it to guess.
+3. Best-of-N with the evaluator as the filter. Generate k=4 replies at temperature, run gates on each, discard anything that fails, rank survivors by the scored tier, surface the top one. This is the piece your reward-model outline was reaching for — same architecture, evaluator in the reward model's slot. No training, works on day one.
+4. Self-revision loop. Feed a failed reply back with its gate failure attached: "you asserted a 14-day refund window; that fact is not in the thread. Rewrite." One retry catches most of it. Two has diminishing returns.
+5. Learned reward model / fine-tuning. Only after you have thousands of logged accept/reject events from real usage. Not reachable here, and not reachable before the product ships.
+
+Note what 3 and 4 mean: the evaluator is the quality system. It's not a separate grading exercise bolted on afterward — it's the filter and the critic. That's the actual argument for building it first, and it's a stronger framing than "evaluator is the deliverable." A generator without a trustworthy evaluator has no way to tell its good outputs from its bad ones, and no way to improve except vibes.
+
+
+# Diagram 
+
+                       ┌──────────────────────┐
+   Thread ────────────▶│      Generator       │──┐
+   (schema.py)         │  builds prompts      │  │
+                       └──────────────────────┘  │
+                                                 │
+   reply + Thread.context                        │  .complete(system, user)
+        │              ┌──────────────────────┐  │
+        └─────────────▶│    Judge (scored)    │──┤
+                       │  one criterion/call  │  │
+                       └──────────────────────┘  │
+                                                 ▼
+                                    ┌─────────────────────────┐
+                                    │   LLM  (Protocol)       │  ◀── the seam
+                                    │   complete() -> str     │
+                                    └─────────────────────────┘
+                                          ▲            ▲
+                        get_llm() picks    │            │
+                        one at runtime     │            │
+                    ┌─────────────────────┘            └──────────────────┐
+                    │                                                     │
+        ┌───────────────────────┐                          ┌──────────────────────────┐
+        │       MockLLM         │                          │        ClaudeLLM         │
+        │  dict lookup, offline │                          │  anthropic SDK, costs $  │
+        │  substring match      │                          │  MODEL = claude-opus-5   │
+        └───────────────────────┘                          └──────────────────────────┘
+                    ▲                                                     ▲
+        no ANTHROPIC_API_KEY                                  ANTHROPIC_API_KEY set
+
+
+Reply Generation *Key Insights:
+
+A real Hiver agent has the account page open. Making the model guess the refund window would be measuring hallucination, not drafting.
+
+*Consider the NLI added component and how well it will tie into email generation , if its more of a fact checker through entailment/contradiction its purely in the evaluation metric , but not something thats gets used in our actual email generation. Its possibily something we just put to the side.
+
+Gave up arbitrarty emails " suggest a reply to my landlord" 
+
+Kept the prompt support scoped where generator prompt is domain agnostic to the threads that we are testing against see Bot Context Below:
+
+Bot Context and Domain:
+the generator prompt is domain-agnostic; the evaluator requires a retrievable context set, which is what shared-inbox tools already have. Extending to arbitrary email means giving up the objective faithfulness gate, which is the tradeoff.
