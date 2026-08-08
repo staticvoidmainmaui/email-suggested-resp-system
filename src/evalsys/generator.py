@@ -58,7 +58,7 @@ def render_thread(thread: Thread) -> str:
         f"Thread {thread.id} ({thread.category})",
         "",
         "Known facts:",
-        *[f"- {c}" for c in thread.context],
+        *[f"- {fact}" for fact in thread.context],
         "",
         "Conversation:",
         *[f"[{m.sender}] {m.body}" for m in thread.messages]
