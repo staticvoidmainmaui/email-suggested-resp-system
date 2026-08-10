@@ -33,54 +33,84 @@ from evalsys.llm import MockLLM, get_llm
 
 # ─── 1. kappa ────────────────────────────────────────────────────────────────
 
+#   FORMULA
+#       kappa = (Po - Pe) / (1 - Pe)  =>  Po  observed agreement  | Pe  expected agreement  
+#       Pe = P(both say yes by chance) + P(both say no by chance)
+#
+#   Read the numerator as "agreement we actually got, minus agreement we'd have
+#   got for free", and the denominator as "the agreement that was available to
+#   earn". Kappa is the fraction of the earnable agreement that was earned.
+#
+#   SCALE
+#       1.0   identical verdicts
+#       0.0   exactly what chance predicts — no skill demonstrated
+#       < 0   worse than chance, i.e. systematically disagreeing
+#     > 0.6   conventionally called "substantial" (Landis & Koch, 1977)
+
+#   Docs: https://en.wikipedia.org/wiki/Cohen%27s_kappa
+#         Landis & Koch (1977), "The Measurement of Observer Agreement"
+
+
 def cohens_kappa(human: list[bool], machine: list[bool]) -> float:
     """Agreement between two raters, corrected for chance. -1 to 1."""
-    # TODO 1 — four counts, then two formulas. No library needed.
-    #
-    #   both_yes = count where human and machine are both True
-    #   both_no  = both False
-    #   n        = len(human)
-    #
-    #   observed = (both_yes + both_no) / n
-    #
-    #   expected = chance agreement:
-    #       p_yes = (human_yes/n) * (machine_yes/n)
-    #       p_no  = (human_no/n)  * (machine_no/n)
-    #       expected = p_yes + p_no
-    #
-    #   return (observed - expected) / (1 - expected)
-    #
-    #   Reading it: 1.0 = perfect, 0.0 = no better than chance, >0.6 is usually
-    #   called substantial. Report the number, don't grade yourself on it.
-    return 0.0
+
+    both_yes = sum(1 for h, m in zip(human, machine) if h and m)
+    both_no = sum(1 for h, m in zip(human, machine) if not h and not m)
+    n = len(human)
+    observed = (both_yes + both_no) / n
+    human_yes = sum(human) # sum of True value which are synonymous with 1.
+    machine_yes = sum(machine)
+    human_no = n - human_yes
+    machine_no = n - machine_yes
+    p_yes = (human_yes / n) * (machine_yes / n)
+    p_no = (human_no / n) * (machine_no / n)
+    expected = p_yes + p_no
+
+    # Pe hits exactly 1.0 only when both raters put every item in the SAME single
+    # class — all-accept or all-reject on both sides. Kappa is undefined there:
+    # with one class in play, chance already predicts everything, so there is no
+    # agreement left to credit and the denominator goes to zero. The realistic
+    # way to land here is an evaluator that rejects all 21, which should show up
+    # as a number rather than a crash.
+    if expected >= 1.0:
+        return 1.0 if observed == 1.0 else 0.0
+
+    return (observed - expected) / (1 - expected)
+
 
 
 # ─── 2. trap recall ──────────────────────────────────────────────────────────
 
 def trap_recall(replies, verdicts) -> tuple[int, int]:
     """How many broken replies did we reject? Returns (caught, total)."""
-    # TODO 2 — loop the replies where reply.defect is not Defect.NONE.
-    #   caught = the verdict for that reply has acceptable == False.
-    #   Return (caught, total).
-    #
-    #   NOTE this asks "did we reject it", not "did we name the right defect".
-    #   That's question 3.
-    return (0, 0)
+
+    caught = 0
+    total = 0
+    for reply in replies:
+        if reply.defect != d.Defect.NONE:
+            v = verdicts[reply.id]
+            if not v.acceptable:
+                caught += 1
+            total += 1
+    return (caught, total)
 
 
 # ─── 3. tier check ───────────────────────────────────────────────────────────
 
 def tier_check(replies, verdicts) -> tuple[int, int]:
     """Was each trap caught by the tier that owns its defect? (right, total)."""
-    # TODO 3 — for each broken reply:
-    #   expected = reply.defect          (the label)
-    #   actual   = verdicts[reply.id].failures   (what we claimed)
-    #   right if expected is in actual.
-    #
-    #   WHY this is separate from recall: rejecting a reply for the wrong reason
-    #   still counts as a catch in question 2. Here it doesn't. The gap between
-    #   the two numbers is the interesting part of the writeup.
-    return (0, 0)
+    right = 0
+    total = 0
+    
+    for reply in replies:
+        if reply.defect != d.Defect.NONE:
+            v = verdicts[reply.id]
+            expected = reply.defect
+            actual = v.failures
+            if expected in actual:
+                right += 1
+            total += 1
+    return (right, total)
 
 
 # ─── 4. exclusions ───────────────────────────────────────────────────────────
@@ -91,11 +121,13 @@ def exclusions(threads, replies, verdicts) -> dict[str, int]:
     #   gate_skipped  = threads with gate_applicable == False
     #   judge_skipped = verdicts where judge_ran is False (a gate sank it first)
     #   parse_failed  = replies the judge returned unreadable JSON for
-    #
-    #   WHY report these: a gate that "passes" threads it declined to examine
-    #   looks more accurate than it is. Saying so is the difference between a
-    #   result and a claim.
-    return {"gate_skipped": 0, "judge_skipped": 0, "parse_failed": 0}
+    
+    gate_skipped = sum(1 for t in threads.values() if not t.gate_applicable)
+    judge_skipped = sum(1 for v in verdicts.values() if not v.judge_ran)
+    parse_failed = 0 # currently not tracked, but could be if we catch the exception in evaluate_all and increment a counter. 
+    
+            
+    return {"gate_skipped": gate_skipped, "judge_skipped": judge_skipped, "parse_failed": parse_failed}
 
 
 # ─── run it ──────────────────────────────────────────────────────────────────
