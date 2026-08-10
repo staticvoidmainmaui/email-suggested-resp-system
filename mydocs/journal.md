@@ -89,6 +89,10 @@ ClaudLLM- currently just a claude model call intializing with tehc lient and mod
 
 also wrote the Refusal error class as to identify errors when actually calling through the class.
 
+Before a model call- 
+export the environment variable into os.eviron with
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+
 # 2.2:
 
 generator.py
