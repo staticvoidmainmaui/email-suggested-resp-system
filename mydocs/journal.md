@@ -121,3 +121,16 @@ After testing and tweaking the NLI weaknesses are:
 
 Contradiction claims are what we are guarding against and what the model can truly identify with a claim ,
 showing the importance in testing with context vs the raw claim of the reply. 
+
+
+
+
+ADDTIONAL REVIEW:
+
+- Take a look at the schema class, review the class we made for replies(LabeledReply) and defects(Defect)
+
+- Trace the validate.py - :80- 90 file where we look up the reply defects with the verdicts
+
+- Look at the schema property methods used and what the do and why they only pertain to thread
+
+- lastly look at the datase.tpy class and how it loads the replies and threads for actual use
