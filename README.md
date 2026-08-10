@@ -1,7 +1,7 @@
 <h1 align="center">GEN_AI EMAIL SUGGESTED RESPONSE SYSTEM</h1>
 
 <p align="center">
-  <strong>A hybrid evaluator for AI-drafted support replies : defending its accuracy metric, not just report one.</strong>
+  <strong>A hybrid evaluator for AI-drafted support replies : defending its accuracy metric, not just reporting one.</strong>
 </p>
 
 <p align="center">
