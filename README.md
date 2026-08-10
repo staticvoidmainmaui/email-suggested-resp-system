@@ -38,7 +38,7 @@ Plus the point of the exercise: **a validation run** that says how far the evalu
 
 ### How it gets built
 
-Approach: break "good" into criteria. Give each one the cheapest check that honestly measures it. Run them in three tiers, cheapest first, and stop early.
+Approach: break "good" into criteria. Give each one the cheapest check that honestly measures it. Run them in two tiers, cheapest first, and stop early.
 
 1. **Gates** — deterministic, no LLM. One failure sinks the reply.
 2. **Judge** — LLM, binary, only on replies that survived the gates.
@@ -48,13 +48,13 @@ Approach: break "good" into criteria. Give each one the cheapest check that hone
 
 This does not answer arbitrary email. The domain is narrowed until correctness is decidable. Each narrowing is load-bearing:
 
-- **Closed world.** Every thread ships with a `context` field — the full set of facts an agent could know. Anything a reply asserts outside it is invented *by construction*. That is what makes faithfulness checkable instead of arguable.
+- **Closed world.** Every thread carries a `context` field holding the complete set of atomic facts an agent could know — account state, applicable policy, order references, what support can and cannot do. It is the CRM page an agent would have open. Anything a reply asserts outside it is invented *by construction*, which is what makes faithfulness checkable instead of arguable.
 - **NLI Local Model Inclusion** A closed world lets the check be mechanical: split the reply into claims and ask, for each one, whether the context *entails* it. That is exactly the task NLI (natural language inference) models are trained on — given a premise and a statement, they return entailment, contradiction, or neither. The gate uses DeBERTa-v3-MNLI off the shelf, and only its "not entailed" verdict matters. Nothing is fine-tuned, and the model never sees a quality question — asking "is this supported by these facts?" is answerable, asking "is this reply good?" is not.
 - **Transactional threads only.** They resolve against known facts. No advice, no negotiation.
-- **Retrieval assumed solved.** The generator is handed the context. This measures composition.
-- **One defect per broken reply.** So a rejection is attributable to one tier.
+- **Composition, not retrieval.** The generator is handed the context, so nothing here measures whether the right facts would have been found.
+- **One defect per broken reply.** Each unacceptable reply carries exactly one deliberate defect and every defect maps to exactly one tier — a defect with no tier means either the tier is missing or the defect is not real.
 - **Binary labels.** Accept or reject. No threshold to tune.
-- **9 threads, English, one annotator.** Enough to test the method. Not enough to claim a population.
+- **9 threads, English, single annotator.** Sized to test the method.
 
 ---
 
@@ -95,18 +95,10 @@ thread + context
 │  coverage · resolution · next_step ·    │
 │  tone · concision                       │
 └─────────────────────────────────────────┘
+      │
+      ▼
+   VERDICT
 ```
-
----
-
-## What can be demonstrated
-
-- **End-to-end run** — generator, both gates, judge, aggregation, over all 21 replies.
-- **Gates-only floor: agrees with human labels on 13/21**, zero API calls, judge stubbed open. A floor, not a result — every scored-tier defect goes uncaught by construction.
-- **Fact gate: zero false positives across 20 replies** — the error that matters most, since a false positive sinks a good reply.
-- **A known, explained miss** — the gate catches *none* of the `wrong_fact` traps. The trap cites order `88412`: a real ID from the context, just the wrong one of two. Membership tests verify existence, not correctness of choice. That failure mode belongs to the judge; saying so beats tuning the regex until the number improves.
-- **Dataset integrity check** — invariants later phases silently assume.
-- **Frozen replies** — a stochastic generator in the loop makes a prompt fix indistinguishable from a different sample.
 
 ---
 
@@ -130,22 +122,37 @@ thread + context
 - 9 threads, 21 replies, 11 acceptable.
 - Each unacceptable reply carries **exactly one** deliberate defect; every defect maps to **exactly one** tier. No tier ⇒ the tier is missing or the defect isn't real.
 - Traps are hand-written, not generated — a model can't be relied on to fabricate a refund policy on demand, and the point of a trap is knowing precisely what's wrong.
-- One thread is `gate_applicable: false` — conversational, no checkable claims, so the gate would pass it trivially. Counting free passes as successes is how a gate looks better than it is. Skipped, and the exclusion is reported.
-- The human `acceptable` label is **never** derived from the evaluator — otherwise the agreement statistic measures the system against itself.
+- One thread is marked `gate_applicable: false` because it is conversational and makes no checkable factual claims. It is excluded from the gate, and the exclusion is reported rather than absorbed.
+- The human `acceptable` label is authored by hand — never derived from the evaluator.
 
 ---
 
-## Limitations
+## What's in the build
 
-- **The scope gates are real constraints** — no retrieval, no open-ended threads, one defect per reply. Outside that domain the numbers don't transfer.
-- **Generator and judge share a model** — mitigated structurally: nothing disqualifying rests on the judge.
-- **Five criteria batched into one judge call** — 5× cheaper, but a judge that dislikes a reply tends to mark it down everywhere. Test specified, not yet run: 10 replies judged both ways, disagreement reported.
-- **Judge currently mocked open** in the 13/21 figure.
-- **No similarity guardrail.** Scoped out on purpose — the moment a similarity score can move the verdict, reference matching is back in through the side door.
-- **9 threads, one annotator** — the agreement statistic shows the method is coherent, not that it generalises.
-- **Wrong-fact traps uncaught by the fact gate** — by design of a membership test; owned by the judge.
+**Evaluation design**
 
-None fatal. An evaluation system that reports what it did not measure is more trustworthy than one that reports only a number.
+- **Closed-world context** — every thread ships its complete fact set
+- **Two-tier evaluator** — deterministic gates, then an LLM judge
+- **Non-LLM gates** — regex fact check + NLI entailment, zero cost per call
+- **NLI probe harness** — 14 labeled pairs, falsifies the model before it's trusted
+- **Claim filter** — drops questions and pleasantries before the gate runs
+- **Gate skip flag** — `gate_applicable: false`, exclusions reported not absorbed
+- **Binary judge** — 5 criteria, one call, quote-backed verdicts
+- **Criterion ordering** — the ground-truth criterion first, anchoring the rest
+- **Short-circuit aggregation** — the judge never runs after a gate failure
+- **Empty ≠ approved** — `judge_ran` distinguishes skipped from passed
+- **Per-tier diagnostics** — `Verdict.failures` names which tier claimed what
+
+**Engineering**
+
+- **Provider seam** — `LLM` protocol, injected; offline stub or real client, so the whole pipeline runs and is testable without an API key
+- **Lazy model imports** — the fact gate runs with no torch installed
+- **Frozen replies** — one generation per prompt version, git as the history; iterating on the judge changes one variable at a time
+- **Prompt versioning** — `prompt_version` on every generated row, v1 preserved inline with what changed and why
+- **Overwrite guard** — `--force` required to replace the frozen set
+- **Refusal handling** — `LLMRefusal` raised, the run survives, the row is flagged
+- **Defensive parsing** — JSON fences stripped, raises rather than guesses
+- **Dataset integrity check** — invariants, duplicate ids, class balance
 
 ---
 
