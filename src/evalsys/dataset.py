@@ -20,7 +20,6 @@ STYLE_DEFECTS = {Defect.BAD_TONE, Defect.VERBOSE}
 def _read_jsonl(path: Path) -> list[dict]:
     # HOW: the leading underscore is a convention meaning "module-private" —
     # nothing enforces it, it just tells a reader this isn't part of the API.
-    
 
     with path.open(encoding="utf-8") as fh:
         return [json.loads(line) for line in fh if line.strip()]
@@ -49,9 +48,7 @@ def load_replies(path: Path | None = None) -> list[LabeledReply]:
 # ─── check(threads, replies) — the dataset's own test suite ──────────────────
 # WHY this function exists: Phase 4's claim is "the evaluator agrees with humans,
 # κ = 0.8x". That number only means something if the human labels are internally
-# consistent. A dataset bug doesn't crash — it quietly drags the kappa down and
-# you spend an hour blaming the judge prompt.
-#
+# consistent. 
 
 #Obtains the material from load_threads and load_replies and checks them against the gates
 def check(threads: dict[str, Thread], replies: list[LabeledReply]) -> list[str]:
@@ -83,7 +80,6 @@ def check(threads: dict[str, Thread], replies: list[LabeledReply]) -> list[str]:
 
                     
     #here we have 4 situations for the reply type gotten and how to classify
-
 
     moment= {r.thread_id for r in replies if r.defect is Defect.NONE}
     for t in threads.values():

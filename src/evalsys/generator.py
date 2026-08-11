@@ -77,12 +77,7 @@ class Generator:
         response = self.llm.complete(system=SYSTEM_PROMPT, user=render_thread(thread))
         return response
         
-        
-
-
-
-
-
+   
 # ─── SYSTEM PROMPT EARLIER VERSION ,  kept for the writeup ───────────────────────────────────
 # Prompt iterations are evidence. "I changed the prompt and the gate pass-rate
 # moved" is a result you can report; keeping the old text makes it reproducible.

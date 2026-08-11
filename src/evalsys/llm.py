@@ -12,9 +12,7 @@ from __future__ import annotations
 import os
 from typing import Protocol
 
-# WHY a Protocol rather than an ABC: nothing here needs shared implementation, and
-# a Protocol is structural — MockLLM doesn't have to inherit from it to satisfy it.
-# Keeps the mock free of any dependency on the real client.
+# WHY a Protocol rather than an ABC: nothing here needs shared implementation, and a Protocol is structural
 #   Docs: https://docs.python.org/3/library/typing.html#typing.Protocol
 
 
@@ -35,30 +33,26 @@ class MockLLM:
         responses: dict[str, str] | None = None,
         fallback: str = "MOCK: no canned response matched.",
     ) -> None:
-        # `responses or {}` — a bare {} as a default arg is the mutable-default
-        # bug, same reason tags needed default_factory in schema.py.
         self.responses = responses or {}
         self.fallback = fallback
 
     def complete(self, system: str, user: str, max_tokens: int = 2000) -> str:
-        # substring, not exact match: the real prompt wraps the thread in a lot of
-        # scaffolding, so a thread id like "t-001" is the only stable thing to key on.
+       
         for marker, reply in self.responses.items():
             if marker in user:
                 return reply
         return self.fallback
     
     
-#Reusal class as to identify errors
+#Refusal class as to identify errors
 class LLMRefusal(RuntimeError):
     """The Model refused to answer. No reply at all"""
 
 
 MODEL = "claude-sonnet-5"
-#Using a sonnet model
 # I was recommended to: 
         # constrain the output format hard (single integer plus a short rationale, one criterion per call, explicit rubric anchors), 
-        # and if you need a stable number, sample the judge 3× and take the median.
+        # and if you need a stable number, sample the judge 3× and take the median for judge consistency.)
 class ClaudeLLM:
     """Thin wrapper over the Messages API."""
 
@@ -68,7 +62,7 @@ class ClaudeLLM:
         self.client = anthropic.Anthropic()
         
 
-    def complete(self, system: str, user: str, max_tokens: int = 2000) -> str:
+    def complete(self, system: str, user: str, max_tokens: int = 8000) -> str:
 
         response = self.client.messages.create(
             model=self.model,
@@ -80,23 +74,15 @@ class ClaudeLLM:
         if response.stop_reason == "refusal":
             raise LLMRefusal(f"model refused (stop_reason=refusal), model={self.model}")
         
-        return next(b.text for b in response.content if b.type == "text")
+        text = next(b.text for b in response.content if b.type == "text")
         
-        #
-        #   Three things that will bite you on this model specifically(opus):
-        #   (a) do NOT pass temperature / top_p / top_k. They were removed on
-        #       Opus 5 and return a 400. Steer with the prompt instead. 
+        if text is None:
+            raise LLMRefusal(
+                f"no text block (stop_reason={response.stop_reason}, model={self.model})"
+            )
         
-        #   (b) thinking is ON by default here, and max_tokens caps thinking
-        #       *plus* the reply. 2000 is fine for a support email; if replies
-        #       come back truncated, that's why.
-        #   (c) check response.stop_reason == "refusal" BEFORE reading content.
-        #       On a refusal the content list is empty and content[0] raises.
-        #       Unlikely on support emails, but it's two lines.
-        
-        ...
-
-
+        return text
+ 
 # ─── choosing a provider ─────────────────────────────────────────────────────
 
 def get_llm() -> LLM:

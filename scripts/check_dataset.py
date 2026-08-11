@@ -1,8 +1,9 @@
-"""Phase 1 runner — load the dataset, print the counts, fail loudly if it's broken.
+"""Phase 1 runner —  prints summary of loaded dataset for debug.
 
 Run it from the repo root:
 
     python check_dataset.py
+
 """
 
 from __future__ import annotations

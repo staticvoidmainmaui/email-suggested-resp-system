@@ -26,6 +26,26 @@
 
 ---
 
+## Project Description:
+
+A Generator and an Evaluation Harness shipped as one. There is no single correct reply to a support email so I applied a tool that builds one out of context. What I built was a generator taking the context of each of the messages shipped as a thread (threads.jsonl) as to make a idealistic reply. But it doesnt come without rules, rules composed by the harness that evaluates correctness.
+
+What I built decomposes "good" into criteria giving each one the cheapeast check to measure it from regex, to entailment checks , to finally a LLM judge running only if gates pass. The results are a quality claim about the generator , backed by an evaluator whose accuracy is quantified by coppen's kappa with human agreement labels:
+
+Of 9 generated replies , 9 pass the full evaluator. ([score_generated.py](code_blocks/scripts/score_generated.py.md)) The evaluator itself agrees with a human annotator at κ = 0.72 (non-deterministic), with 12/12 recall on unsendable replies. ([validate.py](code_blocks/scripts/validate.py.md)) 
+
+> κ between 0.61 and 0.80 is conventionally described as **"substantial"** agreement
+> (Landis & Koch, 1977, *The Measurement of Observer Agreement for Categorical Data*).
+
+```text
+replies evaluated   21
+raw agreement       18/21
+cohen's kappa       0.72
+trap recall         12/12
+caught by own tier  7/12
+exclusions          {'gate_skipped': 1, 'judge_skipped': 4, 'parse_failed': 0}
+```
+
 ## What ships
 
 Three things, in the order they were built:
@@ -64,10 +84,10 @@ Four passes. Each only makes sense once the previous one is fixed.
 
 | | phase | what it does | status |
 |---|---|---|---|
-| **1** | **Dataset** | builds the ruler — good replies and broken ones | done |
-| **2** | **Generator** | turns a thread into a reply | done |
-| **3** | **Evaluator** | turns a reply into a verdict | done |
-| **4** | **Validation** | says how far the verdict can be trusted | scaffolded, returning zeros |
+| **1** | **Dataset** | builds the ruler — good replies and broken ones 
+| **2** | **Generator** | turns a thread into a reply 
+| **3** | **Evaluator** | turns a reply into a verdict 
+| **4** | **Validation** | says how far the verdict can be trusted 
 
 ---
 

@@ -39,9 +39,9 @@ class JudgeResult:
 
 
 # Order matters. Coverage runs first on purpose: it's the only criterion with
-# ground truth (thread.issues), so it anchors the judge on evidence before the
-# subjective ones. A judge that starts on "tone" has formed an opinion by the
-# time it reaches the checkable question.
+# ground truth (thread.issues), so it anchors the judge on evidence. 
+
+# NOTE This is to prevent the Halo Effect caused by a judge's initial impression.
 
 CRITERIA: dict[str, Defect] = {
     "coverage": Defect.MISSED_ISSUE,
@@ -121,17 +121,18 @@ def parse_verdicts(raw: str) -> dict[str, dict]:
     """Model text -> the five verdicts. Raises if it can't."""
 
     raw = raw.strip()
-    if raw.startswith("```json"):
-        raw = raw[7:]
-    if raw.endswith("```"):
-        raw = raw[:-3]
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError(f"No JSON object in response: {raw[:300]!r}") #!r runs repr() showing python literal
+    raw = raw[start:end + 1]
     try:
         parsed= json.loads(raw) # parses into json
         for criterion in CRITERIA:
             if criterion not in parsed:
                 raise ValueError(f"Missing criterion: {criterion}")
     except json.JSONDecodeError as e:
-        raise ValueError("Failed to parse JSON") from e
+        raise ValueError(f"Failed to parse JSON: {raw[:300]!r}") from e
     
     return parsed
 
@@ -158,14 +159,8 @@ def run_judge(llm: LLM, reply: str, thread: Thread) -> list[JudgeResult]:
 
 
 # ─── validating the batching decision ────────────────────────────────────────
-# TODO 5  - 
-#   
-#   Add a `batched: bool = True` parameter. When False, make five calls, each
-#   naming a single criterion. Then run both over ~10 replies and diff.
-#
-#   The writeup line you're buying:
-#     "Batching all five criteria into one call disagreed with single-criterion
-#      calls on N of 50 judgments, all in the direction of correlated failure.
-#      We batch, at that measured cost, for a 5x reduction in calls."
+# TODO 5  - Add a batching parameter toggle to the run_judge function. This will allow the function to run in either batched or non-batched mode, 
+#           depending on the parameter value. The batching parameter can be a boolean that indicates whether to process multiple replies at once or one at a time. 
+#           When batching is enabled, the function should collect all replies and process them together, while when disabled, it should process each reply individually.
 # 
-#  | Currently will run batched, with parameter can print wether batched or not in the replies |
+# Currently will run batched, with an added parameter can print wether batched or not in the replies |
