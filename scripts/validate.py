@@ -1,8 +1,5 @@
 """Phase 4 — does the evaluator agree with the humans? One file, four questions.
 
-This is the part the challenge actually asks about. Everything before it built a
-measurement; this checks whether the measurement is any good.
-
 Four numbers, in order of how much they matter:
 
   1. kappa        — agreement with the human `acceptable` label, corrected for
@@ -67,16 +64,11 @@ def cohens_kappa(human: list[bool], machine: list[bool]) -> float:
     expected = p_yes + p_no
 
     # Pe hits exactly 1.0 only when both raters put every item in the SAME single
-    # class — all-accept or all-reject on both sides. Kappa is undefined there:
-    # with one class in play, chance already predicts everything, so there is no
-    # agreement left to credit and the denominator goes to zero. The realistic
-    # way to land here is an evaluator that rejects all 21, which should show up
-    # as a number rather than a crash.
+    # class — all-accept or all-reject on both sides. 
     if expected >= 1.0:
         return 1.0 if observed == 1.0 else 0.0
 
     return (observed - expected) / (1 - expected)
-
 
 
 # ─── 2. trap recall ──────────────────────────────────────────────────────────
@@ -93,7 +85,6 @@ def trap_recall(replies, verdicts) -> tuple[int, int]:
                 caught += 1
             total += 1
     return (caught, total)
-
 
 # ─── 3. tier check ───────────────────────────────────────────────────────────
 
@@ -112,7 +103,6 @@ def tier_check(replies, verdicts) -> tuple[int, int]:
             total += 1
     return (right, total)
 
-
 # ─── 4. exclusions ───────────────────────────────────────────────────────────
 
 def exclusions(threads, replies, verdicts) -> dict[str, int]:
@@ -125,9 +115,51 @@ def exclusions(threads, replies, verdicts) -> dict[str, int]:
     gate_skipped = sum(1 for t in threads.values() if not t.gate_applicable)
     judge_skipped = sum(1 for v in verdicts.values() if not v.judge_ran)
     parse_failed = 0 # currently not tracked, but could be if we catch the exception in evaluate_all and increment a counter. 
-    
             
     return {"gate_skipped": gate_skipped, "judge_skipped": judge_skipped, "parse_failed": parse_failed}
+
+
+# ─── 5. per-reply audit ──────────────────────────────────────────────────────
+# WHY: "12/12 caught, 7/12 by the right tier" says a gap exists but not where.
+# A trap rejected for the wrong reason counts as a catch under any accuracy
+# metric and is really a near miss — this prints which mechanism fired instead.
+
+def audit(replies, verdicts) -> None:
+    """One line per trap: what we labelled it vs what the evaluator claimed."""
+    print()
+    print(f"{'':6}{'reply':10}{'labelled':22}{'tier':8}claimed by the evaluator")
+    print("-" * 84)
+
+    for r in replies:
+        v = verdicts[r.id]
+        claimed = [x.value for x in v.failures]
+
+        if r.defect is d.Defect.NONE:
+            if not v.acceptable:
+                print(f"FP    {r.id:10}{'(known-good)':22}{'-':8}{claimed}")
+            continue
+
+        # Three outcomes, and they mean different things:
+        #   OK     the tier that owns this defect named it — the design worked
+        #   WRONG  rejected, but for a different reason than the human labelled
+        #   MISS   not rejected at all
+        if r.defect in v.failures:
+            mark = "OK   "
+        elif not v.acceptable:
+            mark = "WRONG"
+        else:
+            mark = "MISS "
+
+        # A skipped judge is the likeliest cause of a WRONG on a scored-tier
+        # defect: a gate sank the reply first, so the criterion never ran.
+        note = "" if v.judge_ran else "   <- judge never ran (gate sank it)"
+        # Humans allow style defects to still be acceptable; the evaluator does
+        # not. Those show up as rejections of replies humans would have sent.
+        fp = "   <- human said ACCEPTABLE" if r.acceptable and not v.acceptable else ""
+
+        print(f"{mark} {r.id:10}{r.defect.value:22}{r.defect.tier:8}{claimed}{note}{fp}")
+
+    print("-" * 84)
 
 
 # ─── run it ──────────────────────────────────────────────────────────────────
@@ -144,6 +176,8 @@ def main() -> int:
         llm = MockLLM(fallback=canned)
     else:
         llm = get_llm()
+
+    print(f"provider: {getattr(llm, 'model', 'MOCK (no API key)')}")
 
     threads = d.load_threads()
     replies = d.load_replies()
@@ -169,6 +203,8 @@ def main() -> int:
     print(f"caught by own tier  {right}/{t_total}")
     print(f"exclusions          {skipped}")
     print("=" * 55)
+
+    audit(replies, verdicts)
     return 0
 
 
