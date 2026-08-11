@@ -23,19 +23,15 @@ from typing import Any
 #
 # Subclassing str as well as Enum means Defect.NONE == "none" is True, so these
 # serialize to JSONL without a custom encoder.
+
+
 class Defect(str, Enum):
     NONE = "none"  # a known-good reply
 
     # Gate tier — non-negotiable, any of these sinks the reply outright.
-    # "hallucination" isn't a separate member — it's the umbrella these two sit
-    # under, and NLI hands us exactly these two labels (neutral / contradiction).
     INVENTED_POLICY = "invented_policy"      # asserts a rule the context never grants
     CONTRADICTS_CONTEXT = "contradicts_context"  # asserts something the context flatly denies
     OVERPROMISE = "overpromise"              # commits to an outcome or date support can't guarantee
-    # WHY its own member: NLI can't catch this. An MNLI model scores a
-    # digit-swapped hypothesis as entailed because it's structurally identical to
-    # the premise, so "refund on order 88350" passes the entailment gate. A
-    # substring test catches it for free — different mechanism, so different label.
     WRONG_FACT = "wrong_fact"                # right shape, wrong identifier or amount
 
     # Scored tier — should pass the gates, but score badly.
@@ -76,27 +72,15 @@ class Thread:
     id: str
     category: str
     messages: list[Message]
-    # The closed world a reply may assert. Anything outside it is invented
-    # policy by construction, which is what makes the gate objective.
     context: list[str]
     issues: list[str]   # distinct things the customer needs handled
     ideal_reply: str    # *a* good reply, not *the* correct answer — guardrail only
 
-    # ── the two additions ────────────────────────────────────────────────────
-    # WHY: identifiers and amounts a reply must get right *if it mentions them at
-    # all*. Not "must contain 88530" — a good reply needn't restate the order
-    # number. The check is "must not state a wrong one", which is why decoys
-    # matter too (see TODO below).
-    # HOW: defaults to empty so existing rows in threads.jsonl still load. Note
-    # both new fields have defaults, so they must come last — dataclass fields
-    # without defaults can't follow fields with them.
     critical_facts: list[str] = field(default_factory=list)
 
-    # WHY: False for conversational threads with no factual claims to be
+    # WHY: For conversational threads with no factual claims to be
     # unfaithful to. The gate trivially "passes" those, and counting free passes
-    # inflates its reported accuracy. Phase 4 filters on this and reports the
-    # exclusions instead. Defaults True because most threads are gradeable —
-    # opting out should be the deliberate act.
+    # inflates its reported accuracy. 
     gate_applicable: bool = True
 
     @property
@@ -107,9 +91,6 @@ class Thread:
         this needs to contain both the conversation so far AND the known facts,
         flattened to plain text.
         """
-        # The facts block gets an explicit label because an off-the-shelf MNLI
-        # model has no idea what a support inbox is — unlabeled bullets read as
-        # non-sequiturs to it.
         thread = "\n".join(f"{m.sender}: {m.body}" for m in self.messages)
         facts = "\n".join(f" - {block}" for block in self.context)
         return f"{thread}\n\nKnown facts available to the agent:\n{facts}"
