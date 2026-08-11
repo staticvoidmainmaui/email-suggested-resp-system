@@ -45,32 +45,6 @@ def main() -> int:
         info = {"thread_id" : tid, "reply": reply, "model": getattr(providermodel, "model", "mock"), "prompt_version": "v2"}
         list_items.append(info)
         
-
-    # TODO 3 — handle a refusal without losing the whole run.
-    #   ClaudeLLM raises LLMRefusal. Eight good replies shouldn't be thrown away
-    #   because the ninth thread tripped something.
-    #
-    #   Decide and write down: skip the row, or write it with reply=None and a
-    #   "refused": true flag? The second is better for the writeup — a refusal is
-    #   a real generator failure and silently dropping it makes the system look
-    #   like it handled 9/9. Whatever you choose, the count in the summary line
-    #   should make it visible.
-    ...
-
-    # TODO 4 — write the file.
-    #   goal:  one JSON object per line, UTF-8, newline-terminated.
-    #   shape: "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n"
-    #   nudge: ensure_ascii=False keeps the em-dashes and curly quotes readable
-    #          in the file rather than as — escapes. Same reason normalize
-    #          _jsonl.py uses it.
-    #
-    #   WHY not append: this script is idempotent by design — rerunning it should
-    #          replace the frozen set, not grow it. Appending would leave you with
-    #          two replies per thread and no way to tell which was current.
-    #
-    #   Guard worth adding: if OUT_PATH already exists and --force wasn't passed,
-    #          refuse and say so. Overwriting the frozen set is exactly the
-    #          accident this file exists to prevent.
     generatedcontent= "\n".join(json.dumps(info, ensure_ascii=False) for info in list_items) + "\n"
     OUT_PATH.write_text(generatedcontent, encoding="utf-8")
 
