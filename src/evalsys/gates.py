@@ -51,8 +51,7 @@ def check_facts(reply: str, thread: Thread) -> GateResult:
     # TODO 1 — find the fact-shaped tokens in the reply and check each one.
 
     #strip
-    critical_facts= {fact.strip(("$,.")) for fact in thread.critical_facts}
-
+    critical_facts = {fact.strip("$,. ") for fact in thread.critical_facts}
 
     #check
     unverified= [] #list of unmatched numbers in the reply not in critical facts
