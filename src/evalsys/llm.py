@@ -12,8 +12,6 @@ from __future__ import annotations
 import os
 from typing import Protocol
 
-from matplotlib import text
-
 # WHY a Protocol rather than an ABC: nothing here needs shared implementation, and a Protocol is structural
 #   Docs: https://docs.python.org/3/library/typing.html#typing.Protocol
 
