@@ -38,12 +38,14 @@ Of 9 generated replies , 9 pass the full evaluator. ([score_generated.py](code_b
 > (Landis & Koch, 1977, *The Measurement of Observer Agreement for Categorical Data*).
 
 ```text
+=======================================================
 replies evaluated   21
-raw agreement       18/21
-cohen's kappa       0.72
+raw agreement       17/21
+cohen's kappa       0.63
 trap recall         12/12
 caught by own tier  7/12
 exclusions          {'gate_skipped': 1, 'judge_skipped': 4, 'parse_failed': 0}
+=======================================================
 ```
 
 ## What ships
